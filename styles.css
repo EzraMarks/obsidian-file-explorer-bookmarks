@@ -1,8 +1,19 @@
-/*
+.stacked-sidebar-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+.stacked-sidebar-body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+}
 
-If your plugin does not need CSS, delete this file.
-
-*/
+.stacked-sidebar-section-label {
+    color: var(--nav-item-section-header-color, var(--text-muted));
+    font-weight: 600;
+    padding: 0px 12px 4px 12px;
+    font-size: var(--font-ui-sm);
+}

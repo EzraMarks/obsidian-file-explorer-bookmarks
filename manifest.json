@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
+	"id": "stacked-sidebar",
+	"name": "Stacked Sidebar",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"description": "Combines multiple sidebar views into a single stacked sidebar.",
+	"author": "Ezra Marks",
+	"authorUrl": "https://github.com/EzraMarks",
 	"isDesktopOnly": false
 }
