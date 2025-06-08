@@ -1,9 +1,9 @@
 {
-	"id": "stacked-sidebar",
-	"name": "Stacked Sidebar",
+	"id": "file-explorer-bookmarks",
+	"name": "File Explorer Bookmarks",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "Combines multiple sidebar views into a single stacked sidebar.",
+	"description": "Adds the Bookmarks view directly to the bottom of the default Obsidian File Explorer.",
 	"author": "Ezra Marks",
 	"authorUrl": "https://github.com/EzraMarks",
 	"isDesktopOnly": false

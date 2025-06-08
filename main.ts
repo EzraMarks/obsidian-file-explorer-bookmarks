@@ -1,121 +1,81 @@
 import {
 	Plugin,
 	WorkspaceLeaf,
-	ItemView,
 } from 'obsidian';
 
-const STACKED_SIDEBAR_VIEW_TYPE = 'stacked-sidebar-view';
-
-export default class StackedSidebarPlugin extends Plugin {
-	async onload() {
-		this.registerView(
-			STACKED_SIDEBAR_VIEW_TYPE,
-			(leaf) => new StackedSidebarView(leaf)
-		);
-
+export default class FileExplorerBookmarks extends Plugin {
+	override async onload() {
 		this.addCommand({
-			id: 'open-stacked-sidebar',
-			name: 'Open Stacked Sidebar',
-			callback: async () => {
-				await this.app.workspace.ensureSideLeaf(STACKED_SIDEBAR_VIEW_TYPE, "left", { active: true });
+			id: 'patch-file-explorer',
+			name: 'Patch File Explorer',
+			callback: () => {
+				this.patchFileExplorer();
 			}
 		});
-	}
-}
 
-class StackedSidebarView extends ItemView {
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-	}
-
-	override getViewType() {
-		return STACKED_SIDEBAR_VIEW_TYPE;
-	}
-
-	override getDisplayText() {
-		return 'Files (Stacked Sidebar)';
-	}
-
-	override getIcon() {
-		return 'folder-tree';
-	}
-
-	// Now an array of objects with viewType and optional label
-	private embeddedViews = [
-		{ viewType: "file-explorer", label: undefined },
-		{ viewType: "bookmarks", label: "Bookmarks" }
-	];
-
-	override async onOpen() {
-		this.initialize();
-	}
-
-	async initialize() {
-		const container = this.containerEl;
-		container.empty();
-		const wrapper = container.createDiv('stacked-sidebar-wrapper');
-		const combinedBody = wrapper.createDiv('stacked-sidebar-body');
-		const combinedFooter = wrapper.createDiv('stacked-sidebar-footer');
-
-		let mainButtonsContainer: HTMLElement | null = null;
-
-		for (const { viewType, label } of this.embeddedViews) {
-			const shadowLeaf = await this.makeShadowLeaf(viewType);
-			const shadowContainerEl = shadowLeaf.view.containerEl;
-			shadowContainerEl.className = ""; // remove all formatting
-
-			const header = shadowContainerEl.querySelector('.nav-header') as HTMLElement | null;
-			const buttonsContainer = header?.querySelector('.nav-buttons-container') as HTMLElement | null;
-
-			// Combine nav-buttons-containers into the header
-			if (buttonsContainer) {
-				if (!mainButtonsContainer) {
-					mainButtonsContainer = buttonsContainer;
-					combinedFooter.replaceWith(header!);
-					combinedFooter.addClass("stacked-sidebar-footer");
-				} else {
-					// For subsequent views, add their buttons to the main container
-					// while (buttonsContainer.firstChild) {
-					// 	mainButtonsContainer.appendChild(buttonsContainer.firstChild);
-					// }
-					header?.remove();
-				}
-			}
-
-			// Add section label if defined
-			if (label) {
-				const sectionLabel = document.createElement('div');
-				sectionLabel.className = 'stacked-sidebar-section-label';
-				sectionLabel.textContent = label;
-				combinedBody.appendChild(sectionLabel);
-			}
-
-			// Add the full view content to the combined body
-			combinedBody.appendChild(shadowContainerEl);
+		// Wait for workspace to be fully loaded before patching
+		if (this.app.workspace.layoutReady) {
+			await this.patchFileExplorer();
+		} else {
+			this.app.workspace.onLayoutReady(() => {
+				this.patchFileExplorer();
+			});
 		}
 	}
 
-	override async onClose() {
-		this.embeddedViews.forEach(({ viewType }) => {
-			const shadowViewType = getShadowViewType(viewType)
-			this.app.workspace.getLeavesOfType(shadowViewType).forEach(leaf => {
-				leaf.detach()
-			});
-		});
+	override onunload(): void {
+		this.detachLeavesOfType(getShadowViewType("bookmarks"));
+	}
+
+	/**
+	 * This method monkey patches the file explorer leaf to include content from the bookmarks leaf.
+	 * In practice, this is accomplished by first creating a "shadow leaf" which renders the bookmarks
+	 * content. Then, the HTML elements from this leaf are moved and injected into the file explorer
+	 * leaf. The elements cannot simply be cloned, as they will no longer be interactive. There is
+	 * surely a way to accomplish this without the shadow leaf, but this approach is robust in its hackiness.
+	 */
+	async patchFileExplorer() {
+		// Clean up any existing shadow leaves
+		this.detachLeavesOfType(getShadowViewType("bookmarks"));
+
+		// Recreate the file explorer leaf
+		this.detachLeavesOfType("file-explorer");
+		const fileExplorerLeaf = await this.app.workspace.ensureSideLeaf("file-explorer", "left");
+
+		// Create the bookmarks shadow leaf
+		const bookmarksShadowLeaf = await this.makeShadowLeaf("bookmarks");
+		const bookmarksContent = bookmarksShadowLeaf.view.containerEl.children[2];
+		const shadowLeafDiv = bookmarksShadowLeaf.view.containerEl
+			.createDiv("file-explorer-bookmarks-shadow-leaf-disclaimer");
+		shadowLeafDiv.appendText(
+			"This is a shadow leaf created by the File Explorer Bookmarks plugin - please ignore it!"
+		);
+		// File explorer will become nonfunctional if shadow leaf is detached, so best to close it
+		bookmarksShadowLeaf.view.onunload = () => this.detachLeavesOfType("file-explorer");
+
+		// Append the bookmarks content to the end of the file explorer content
+		const fileExplorerContent = fileExplorerLeaf.view.containerEl.children[1];
+		fileExplorerContent.createDiv("file-explorer-bookmarks-separator");
+		// Remove existing styling from the bookmarks content
+		bookmarksContent.className = "";
+		fileExplorerContent.append(bookmarksContent);
 	}
 
 	async makeShadowLeaf(viewType: string): Promise<WorkspaceLeaf> {
 		const leaf = this.app.workspace.getLeftLeaf(false)!;
-		leaf.getDisplayText = () => "stacked-sidebar-helper";
+		leaf.getDisplayText = () => "";
 		leaf.getIcon = () => "";
 
 		await leaf.setViewState({ type: viewType });
 		const shadowViewType = getShadowViewType(viewType);
 		leaf.view.getViewType = () => shadowViewType;
-		// If this shadow is closed, close the whole thing.
-		leaf.view.onunload = () => this.leaf.detach();
 
 		return leaf;
+	}
+
+	detachLeavesOfType(viewType: string) {
+		this.app.workspace.getLeavesOfType(viewType)
+			.forEach(leaf => leaf.detach());
 	}
 }
 
